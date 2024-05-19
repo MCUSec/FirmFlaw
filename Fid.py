@@ -46,7 +46,7 @@ def CreateFunctionID(service, fidDb, name, file, langID, monitor):
         logging.error(f'FidDb IOException {e.getMessage()}')
         
 def create(args):
-    launcher = HeadlessLoggingPyhidraLauncher(verbose=True, log_path='./launch.log')
+    launcher = HeadlessLoggingPyhidraLauncher(verbose=True, log_path=f'./logs/Pyhidra_{args.project_name}.log')
     launcher.start()
     # import 
     from ghidra.base.project import GhidraProject
@@ -93,11 +93,15 @@ def processMatches(result, program, nameAnalysis, monitor) -> list:
     if result.matches.size() == 0:
         return 
     matches_ = []
+    names_ = set()
     for match in result.matches:
         function = match.getFunctionRecord()
         fname_ = function.getName()
-        library = match.getLibraryRecord().toString()
-        matches_.append((fname_, library))
+        # deduplicate the function based on the name
+        if fname_ not in names_:
+            names_.add(fname_)
+            library = match.getLibraryRecord().toString()
+            matches_.append((fname_, library))
     return matches_ 
     
 
@@ -141,7 +145,7 @@ def search_fid(program, monitor, nameAnalysis):
     
 
 def search(args):
-    launcher = HeadlessLoggingPyhidraLauncher(verbose=True, log_path='./launch.log')
+    launcher = HeadlessLoggingPyhidraLauncher(verbose=True, log_path=f'./logs/Pyhidra_{args.project_name}.log')
     launcher.start()
     # import 
     from ghidra.base.project import GhidraProject

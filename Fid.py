@@ -10,7 +10,7 @@ from utils.launcher import HeadlessLoggingPyhidraLauncher
 log_time = time.strftime("%Y-%m-%d_%H:%M:%S")
     
 def report(name, result):
-    logging.info(f'{name_}')
+    logging.info(f'{name}')
     logging.info(f'{result.getTotalAttempted()} total functions visited')
     logging.info(f'{result.getTotalAdded()} total functions added')
     logging.info(f'{result.getTotalExcluded()} total functions excluded')
@@ -22,11 +22,11 @@ def report(name, result):
     for loc_ in result.getUnresolvedSymbols():
         function_names.add(loc_.getFunctionName())
     for name_ in function_names:
-        print(f'   {name_}')
+        logging.info(f'   {name_}')
 
 def CreateFunctionID(service, fidDb, name, file, langID, monitor):
     from java.io import IOException
-    from java.lang import IllegalStateException
+    from java.lang import IllegalStateException, NullPointerException
     from ghidra.program.model.mem import MemoryAccessException
     from ghidra.util.exception import CancelledException, VersionException
     from java.util import ArrayList
@@ -44,6 +44,8 @@ def CreateFunctionID(service, fidDb, name, file, langID, monitor):
         logging.error(f'Illegal State Exception {e.getMessage()}')
     except IOException as e:
         logging.error(f'FidDb IOException {e.getMessage()}')
+    except NullPointerException as e: # TODO: this error has been fixed newer commit, remember to update it 
+        logging.error(f'FidDb NullPointerException {e.getMessage()}')
         
 def create(args):
     launcher = HeadlessLoggingPyhidraLauncher(verbose=True, log_path=f'./logs/Pyhidra_{args.project_name}.log')
@@ -74,17 +76,20 @@ def create(args):
     logging.debug(f'create fid file {fidfiles}')
     fidfile = fidfiles[0]
     fidDb = fidfile.getFidDB(True)
+    num = 0
     for file_ in project.getRootFolder().getFiles():
         name_ = file_.getName()
+        monitor.setMessage(f'Create FunctionID db from {name_}')
         program_ = project.openProgram('/', file_.getName(), True)
         langID_ = program_.getLanguageID()
         project.close(program_)
         CreateFunctionID(service, fidDb, name_, file_, langID_, monitor)
-    logger.debug("Saving FuntionID database")
+        num += 1
+    logging.debug("Saving FuntionID database")
     fidDb.saveDatabase("Saving", monitor)
     fidDb.close()
     project.close()
-    logger.info("Finish, Exit")  
+    logging.info("Finish, Exit")  
 
 #################################
 # Search Function ID
@@ -184,9 +189,9 @@ def search(args):
         project.close(program_)
     # write results
     logging.info(f'Total Search Time {time.time()-start_time} for {len(match_num)} programs')
-    with open(f'./res/functionID_{args.project_name}.json', 'w') as file:
+    with open(f'./res/functionID_{args.project_name}_{args.fid_name}_{log_time}.json', 'w') as file:
         json.dump(all_matches, file, indent=4)
-    with open(f'./res/functionID_{args.project_name}.csv', 'w') as file:
+    with open(f'./res/functionID_{args.project_name}_{args.fid_name}_{log_time}.csv', 'w') as file:
         file.write("Program,match\n")
         for i in match_num:
             file.write(f'{i[0]},{i[1]}\n')

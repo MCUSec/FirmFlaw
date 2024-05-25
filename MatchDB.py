@@ -27,6 +27,8 @@ def main(args):
     from java.io import IOException
     from ghidra.base.project import GhidraProject
     from ghidra.program.flatapi import FlatProgramAPI
+    from ghidra.util.task import ConsoleTaskMonitor
+    monitor = ConsoleTaskMonitor()
 
     # Create Project Dir and name 
     project_location = args.project_path
@@ -56,8 +58,8 @@ def main(args):
     start_time = time.time()
     #signal.signal(signal.SIGALRM, timeout_handler)
     for file_ in project.getRootFolder().getFiles():
-        # print(f"Match program {name_}")
         name_ = file_.getName()
+        monitor.setMessage(f'Create Database for {name_} at {num}')
         program = project.openProgram('/', name_, True)
         rows_ = []
         for func_ in program.getListing().getFunctions(True):
@@ -71,13 +73,17 @@ def main(args):
                 #    print(f'WARNING: {func_.getName()} hash is a little long {hash_}')
                 row_ += (hash_,) + inst_ + graph
                 # no check because every bin is different 
-                if args.deduplicate and not sql_check_duplicate_func(cursor, row_[func_key_idx('name')], row_[func_key_idx('hash')], FUNC_TABLE_NAME):
+                if args.deduplicate:
+                    if not sql_check_duplicate_func(cursor, row_[func_key_idx('name')], row_[func_key_idx('hash')], FUNC_TABLE_NAME):
+                        rows_.append(row_)
+                else:
                     rows_.append(row_)
             # insert the rows    
         sql_insert(cursor, FUNC_KEYS.keys(), rows_, FUNC_TABLE_NAME)
         conn.commit()      
         # remember closing the program to avoid memory usage 
         logging.info(f"{program.getName()} insert {len(rows_)} functions at {num}")
+        monitor.setMessage(f"{program.getName()} insert {len(rows_)} functions at {num}")
         func_num.append([name_, len(rows_)])
         num += 1
         project.close(program)

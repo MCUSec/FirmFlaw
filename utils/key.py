@@ -2,6 +2,7 @@
 
 # the lower bound for numaddress
 LOWER_BOUND_ADDR_NUM = 20
+INDIRECT = 61
 
 def filter_func(func: 'ghidra.program.model.listing.Function') -> bool:
     '''
@@ -17,7 +18,30 @@ def get_inst_key(func: 'ghidra.program.model.listing.Function') -> tuple:
     code_units = func.getProgram().getListing().getCodeUnits(func.getBody(), True)
     # TODO: consider convert tuple to dict to avoid use index to access the value 
     return (int(func.body.numAddresses),",".join(code.getMnemonicString() for code in code_units)) 
+
+
+def get_opcode_key(decomplib: 'ghidra.app.decompiler.DecompInterface', func: 'ghidra.program.model.listing.Function', monitor: 'ghidra.util.task.TaskMonitor') -> tuple:
+    '''
+    get the number of op code and the opcode of every pcodeOp
+    '''
+    timeout = 60
+    dres = decomplib.decompileFunction(func, timeout, monitor)
+    hfunc = dres.getHighFunction()
+    if hfunc is None:
+        return (0,b'')
+    ops_ = b''
+    for pcode_ in hfunc.getPcodeOps():
+        op_ = pcode_.getOpcode()
+        if op_ == INDIRECT: # TODO: maybe more skip
+            continue
+        try:
+            ops_ += op_.to_bytes(1)
+        except OverflowError as e:
+            logging.error(f"{op_} is too big")
+    # TODO: use numAddreses or len(ops_)
+    return (len(ops_), ops_)
     
+
 def get_struct_graph_key(func: 'ghidra.program.model.listing.Function') -> tuple:  
     '''
     get the structure graph related attributes in this function

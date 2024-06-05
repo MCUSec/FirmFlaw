@@ -60,7 +60,6 @@ def firm_valid(firmware: Path) -> Path:
         return None
     # base address
     base_address = 0
-    # TODO: 0x-1 is hahaha
     if (ba_ := info_.get('base address')) is not None and ba_ != '0x-1': 
         if len(ba_) < 3 or ba_[:2] != '0x':
             logging.error(f'Skip: invalid base address str {ba_}')

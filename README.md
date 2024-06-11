@@ -113,3 +113,7 @@ I'm improving the script now.
 
 
 
+## TODO
+
+The `esp_ot_br.elf` is larger than 50MB, so it cannot be uploaded to github.
+However the number of match result related to this firmware is not significant - SimMatch 102, functionID 1, so currently not upload it.

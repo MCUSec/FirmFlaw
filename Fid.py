@@ -44,7 +44,7 @@ def CreateFunctionID(service, fidDb, name, file, langID, monitor):
         logging.error(f'Illegal State Exception {e.getMessage()}')
     except IOException as e:
         logging.error(f'FidDb IOException {e.getMessage()}')
-    except NullPointerException as e: # TODO: this error has been fixed newer commit, remember to update it 
+    except NullPointerException as e: # has been fixed in 11.1, but keep it
         logging.error(f'FidDb NullPointerException {e.getMessage()}')
         
 def create(args):

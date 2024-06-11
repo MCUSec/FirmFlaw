@@ -11,6 +11,19 @@ The whole process could be seperate into 5 steps,
 
 The detail commands of each step will be shown in different sections 
 
+## Docker
+
+The docker image can help you skip the setup process and directly jump to ghidra project creation step.
+
+```shell
+# build docker image
+docker build -t otacap/FirmFlaw .
+# run and link the firmwares folder
+docker run -it --name firmflaw -v </path/to/firmwares>:/FirmFlaw/firmwares otacap/firmflaw /bin/bash
+```
+
+Change the `</path/to/firmwares>` to where you store the firmwares after process.
+
 ## Setup
 In this step, we need to setup the environment, mkdir some necessary folders and put the FirmwareURL generated firmwares in the right way.
 Our project is based on pyhidra and ghidra, so we need to download them first 

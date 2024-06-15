@@ -88,6 +88,13 @@ python3 buildProject.py ./ghidra_projects xtensa_db ./match_base/xtensa
 
 > Note: -h can be used to check the meaning of differenct parameters, for example python3 buildProject.py -h
 
+## Mitigation
+
+In this part, We will detect the Mitigation usage in firmwares 
+
+```shell
+python3 Mitigation.py ./ghidra_projects arm_bins
+
 ## FunctionID 
 
 In this part, We will create the FunctionID database and run the match process 

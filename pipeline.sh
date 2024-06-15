@@ -17,6 +17,10 @@ fi
 echo "${green}Build Ghidra Projects${reset}"
 ./build.sh $1
 
+# Mitigation Method check
+echo "${green}Mitigation Metchod Detection process${reset}"
+python3 Mitigation.py ./ghidra_projects arm_bins
+
 # FunctionID
 echo "${green}Library Match using FunctionID${reset}"
 ./FunctionID.sh

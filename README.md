@@ -1,5 +1,15 @@
 # FirmFlaw
 
+If you do not want to know the detailed commands, just use the shell script.
+
+```shell
+./pipeline.sh <firmware_path>
+```
+
+`firmwares_path` is the folder containing the firmwares recognized by our signatures
+
+## Details
+
 The whole process could be seperate into 5 steps, 
 
 0. setup 

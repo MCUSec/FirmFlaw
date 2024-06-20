@@ -1,5 +1,167 @@
 import logging 
 import argparse 
+import os
+from pathlib import Path
+import math
+
+def md_table(row, col, data):
+    
+    if len(data) != len(row) or len(data[0]) != len(col):
+        print(f'Error: data:{data} not match row:{row} col:{col}')
+    str_ = "| "
+    split_ = "|-"
+    for i in col:
+        str_ += "|" + i
+        split_ += "|-"
+    str_ += "|\n" + split_ + "|\n"
+    for (idx,item) in enumerate(row):
+        str_ += "|" + item
+        for j in data[idx]:
+            str_ += f"| {j:.2f}"
+        str_ += "|\n"
+    return str_
+
+def best_match(prefix):
+    '''
+    find the best match result using prefix string
+    based on file size 
+    '''
+    max_size = 0
+    match_ = None 
+    for i in os.listdir('./res/'):
+        if not i.startswith(prefix):
+            continue
+        path_ = Path(f'./res/{i}')
+        size_ = os.path.getsize(path_)
+        if size_ > max_size:
+            max_size = size_
+            match_ = path_
+    if match_ is None:
+        print(f"Error: no match file with prefix {prefix}")
+        return None
+    return match_
+
+def std_dev(data):
+    n = len(data)
+    mean = sum(data) / n
+    variance = sum((x - mean) ** 2 for x in data) / n
+    return math.sqrt(variance)
+
+def median(arr):
+    sorted_arr = sorted(arr)
+    n = len(sorted_arr)
+    
+    if n % 2 == 0:
+        # even
+        mid1 = sorted_arr[n//2 - 1]
+        mid2 = sorted_arr[n//2]
+        return (mid1 + mid2) / 2
+    else:
+        # odd
+        return sorted_arr[n//2]
+
+# Complexity: function and size 
+def complexity_arm():
+    # ARM
+    with open('./res/func_num_arm_bins.csv') as file:
+        lines = file.readlines()
+    
+    arm_funcs = []
+    arm_size = []
+    for line in lines[1:]:
+        s_ = line.split(',')
+        funcs_ = int(s_[2])
+        size_ = int(s_[3])
+        if funcs_ == 0:
+            continue
+        arm_funcs.append(funcs_)
+        # KB
+        arm_size.append(size_/1024)
+    table6_arm = md_table(['Func.#','Size(KB)'], ['Mean','Median','SD'], [[sum(arm_funcs)/len(arm_funcs),median(arm_funcs),std_dev(arm_funcs)], \
+                                                                          [sum(arm_size)/len(arm_size),median(arm_size),std_dev(arm_size)]])
+    # Distribution
+    t1 = 100
+    t2 = 1500
+    bars = [0,0,0]
+    for i in arm_funcs:
+        if 0 < i <= t1:
+            bars[0] += 1
+        elif t1 < i <= t2:
+            bars[1] += 1
+        elif t2 < i:
+            bars[2] += 1
+    figure3_arm = md_table(['ARM'],['1-100','100-1500','>1500'],[bars])       
+
+    t1 = 50
+    t2 = 100
+    bars = [0,0,0]
+    for i in arm_size:
+        if 0 <= i <= t1:
+            bars[0] += 1
+        elif t1 < i <= t2:
+            bars[1] += 1
+        elif t2 < i:
+            bars[2] += 1
+    figure4_arm = md_table(['ARM'],['<50KB','50KB-100KB','>100KB'],[bars]) 
+    
+    return (table6_arm, figure3_arm, figure4_arm)
+
+def complexity_xtensa():
+    # Xtensa
+    with open('./res/func_num_xtensa_bins.csv') as file:
+        lines = file.readlines()
+    
+    xtensa_funcs = []
+    xtensa_size = []
+    for line in lines[1:]:
+        s_ = line.split(',')
+        funcs_ = int(s_[2])
+        size_ = int(s_[3])
+        if funcs_ == 0:
+            continue
+        xtensa_funcs.append(funcs_)
+        # KB
+        xtensa_size.append(size_/1024)
+    table6_xtensa = md_table(['Func.#','Size(KB)'], ['Mean','Median','SD'], [[sum(xtensa_funcs)/len(xtensa_funcs),median(xtensa_funcs),std_dev(xtensa_funcs)], \
+                                                                              [sum(xtensa_size)/len(xtensa_size),median(xtensa_size),std_dev(xtensa_size)]])
+
+    # Distribution
+    t1 = 100
+    t2 = 1500
+    bars = [0,0,0]
+    for i in xtensa_funcs:
+        if 0 < i <= t1:
+            bars[0] += 1
+        elif t1 < i <= t2:
+            bars[1] += 1
+        elif t2 < i:
+            bars[2] += 1
+    figure3_xtensa = md_table(['Xtensa'],['1-100','100-1500','>1500'],[bars])       
+
+    t1 = 50
+    t2 = 100
+    bars = [0,0,0]
+    for i in xtensa_size:
+        if 0 <= i <= t1:
+            bars[0] += 1
+        elif t1 < i <= t2:
+            bars[1] += 1
+        elif t2 < i:
+            bars[2] += 1
+    figure4_xtensa = md_table(['Xtensa'],['<50KB','50KB-100KB','>100KB'],[bars])
+    
+    return (table6_xtensa, figure3_xtensa, figure4_xtensa)
+
+def main(args):
+    md_ = "# Results\n\n## Complexity Anlaysis\n\n"
+    (table6_arm, figure3_arm, figure4_arm) = complexity_arm()
+    md_ += f"### ARM\n {table6_arm}\n\nDistribution of function number\n{figure3_arm}\n\nDistribution of firmware size\n{figure4_arm}\n\n" 
+    (table6_xtensa, figure3_xtensa, figure4_xtensa) = complexity_xtensa()
+    md_ += f"### Xtensa\n {table6_xtensa}\n\nDistribution of function number\n{figure3_xtensa}\n\nDistribution of firmware size\n{figure4_xtensa}\n\n"
+    md_ += '## Library Adoption Analysis'
+    
+    with open('./res/results.md','w') as file:
+        file.write(md_)
 
 # ESP Xtensa Lib Adoptation
 def read_tags(tags):

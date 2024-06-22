@@ -13,6 +13,9 @@ if [ $# -eq 0 ]; then
     exit 0
 fi
 
+# prepare environments 
+./prepare.sh
+
 # build 
 echo "${green}Build Ghidra Projects${reset}"
 ./build.sh $1

@@ -1,13 +1,21 @@
 import logging 
 import argparse 
+import time 
 import os
+import json
 from pathlib import Path
 import math
 
-def md_table(row, col, data):
-    
+threshold = 2
+log_time = time.strftime("%Y-%m-%d_%H:%M:%S")
+
+def md_table(row, col, data, float_=False):
+    '''
+    construct markdown table 
+    float_: use float in table 
+    '''
     if len(data) != len(row) or len(data[0]) != len(col):
-        print(f'Error: data:{data} not match row:{row} col:{col}')
+        logging.error(f'Error: data:{data} not match row:{row} col:{col}')
     str_ = "| "
     split_ = "|-"
     for i in col:
@@ -17,19 +25,22 @@ def md_table(row, col, data):
     for (idx,item) in enumerate(row):
         str_ += "|" + item
         for j in data[idx]:
-            str_ += f"| {j:.2f}"
+            if float_:
+                str_ += f"| {j:.2f}"
+            else:
+                str_ += f"| {j}"
         str_ += "|\n"
     return str_
 
-def best_match(prefix):
+def best_match(prefix, ext):
     '''
-    find the best match result using prefix string
-    based on file size 
+    select the best match result from multiple run
+    using prefix string and extension based on file size 
     '''
     max_size = 0
     match_ = None 
     for i in os.listdir('./res/'):
-        if not i.startswith(prefix):
+        if not i.startswith(prefix) or not i.endswith(ext):
             continue
         path_ = Path(f'./res/{i}')
         size_ = os.path.getsize(path_)
@@ -37,7 +48,7 @@ def best_match(prefix):
             max_size = size_
             match_ = path_
     if match_ is None:
-        print(f"Error: no match file with prefix {prefix}")
+        logging.error(f"Error: no match file with prefix {prefix}")
         return None
     return match_
 
@@ -78,7 +89,7 @@ def complexity_arm():
         # KB
         arm_size.append(size_/1024)
     table6_arm = md_table(['Func.#','Size(KB)'], ['Mean','Median','SD'], [[sum(arm_funcs)/len(arm_funcs),median(arm_funcs),std_dev(arm_funcs)], \
-                                                                          [sum(arm_size)/len(arm_size),median(arm_size),std_dev(arm_size)]])
+                                                                          [sum(arm_size)/len(arm_size),median(arm_size),std_dev(arm_size)]], True)
     # Distribution
     t1 = 100
     t2 = 1500
@@ -123,9 +134,9 @@ def complexity_xtensa():
         # KB
         xtensa_size.append(size_/1024)
     table6_xtensa = md_table(['Func.#','Size(KB)'], ['Mean','Median','SD'], [[sum(xtensa_funcs)/len(xtensa_funcs),median(xtensa_funcs),std_dev(xtensa_funcs)], \
-                                                                              [sum(xtensa_size)/len(xtensa_size),median(xtensa_size),std_dev(xtensa_size)]])
+                                                                              [sum(xtensa_size)/len(xtensa_size),median(xtensa_size),std_dev(xtensa_size)]], True)
 
-    # Distribution
+    # Distribution of function
     t1 = 100
     t2 = 1500
     bars = [0,0,0]
@@ -137,7 +148,7 @@ def complexity_xtensa():
         elif t2 < i:
             bars[2] += 1
     figure3_xtensa = md_table(['Xtensa'],['1-100','100-1500','>1500'],[bars])       
-
+    # Distribution of Size 
     t1 = 50
     t2 = 100
     bars = [0,0,0]
@@ -151,17 +162,6 @@ def complexity_xtensa():
     figure4_xtensa = md_table(['Xtensa'],['<50KB','50KB-100KB','>100KB'],[bars])
     
     return (table6_xtensa, figure3_xtensa, figure4_xtensa)
-
-def main(args):
-    md_ = "# Results\n\n## Complexity Anlaysis\n\n"
-    (table6_arm, figure3_arm, figure4_arm) = complexity_arm()
-    md_ += f"### ARM\n {table6_arm}\n\nDistribution of function number\n{figure3_arm}\n\nDistribution of firmware size\n{figure4_arm}\n\n" 
-    (table6_xtensa, figure3_xtensa, figure4_xtensa) = complexity_xtensa()
-    md_ += f"### Xtensa\n {table6_xtensa}\n\nDistribution of function number\n{figure3_xtensa}\n\nDistribution of firmware size\n{figure4_xtensa}\n\n"
-    md_ += '## Library Adoption Analysis'
-    
-    with open('./res/results.md','w') as file:
-        file.write(md_)
 
 # ESP Xtensa Lib Adoptation
 def read_tags(tags):
@@ -193,15 +193,25 @@ def read_symbol(sym_file):
 
 # The ESP LIB Match
 esp_funcdb = {
-'esp-phy': read_symbol('./tags/esp-phy-lib.symbol'),
-'esp-lwip': read_tags('./tags/esp-lwip.tags'),
-'esp-mqtt': read_tags('./tags/esp-mqtt.tags'),
-'esp-wifi': read_symbol('./tags/esp32-wifi-lib.symbol'),
-'esp-openthread': read_tags('./tags/esp-openthread.tags') | read_symbol('./tags/esp-thread-lib.symbol'),
-'esp-mbedtls': read_tags('./tags/mbetls.tags'),
-'esp-bt': read_symbol('./tags/esp32-bt-lib.symbol'),
-'esp-hal': read_tags('./tags/esp-idf-hal.tags'),
-'esp-freertos': read_tags('./tags/freertos-tags'),
+'RF': read_symbol('./tags/esp-phy-lib.symbol'),
+'LwIP': read_tags('./tags/esp-lwip.tags'),
+'MQTT': read_tags('./tags/esp-mqtt.tags'),
+'WiFi': read_symbol('./tags/esp32-wifi-lib.symbol'),
+# 'Thread': read_tags('./tags/esp-openthread.tags') | read_symbol('./tags/esp-thread-lib.symbol'),
+'MbedTLS': read_tags('./tags/mbedtls.tags'),
+'BLE': read_symbol('./tags/esp32-bt-lib.symbol'),
+'HAL': read_tags('./tags/esp-idf-hal.tags'),
+'FreeRTOS': read_tags('./tags/freertos.tags'),
+}
+
+# The ARM LIB Database
+arm_funcdb = {
+'Nordic nRF5': read_tags('./tags/nrf5_sdk_17.0.2.tags'),
+'Arduino': read_tags('./tags/arduino.tags'),
+'HARDWAREIO': read_tags('./tags/twr.tags'),
+'STM32Cube': read_tags('./tags/stm32cubef4-drivers.tags'),
+'FreeRTOS': read_tags('./tags/freertos.tags'),
+'Mbedtls': read_tags('./tags/mbedtls.tags'),
 }
 
 
@@ -234,22 +244,15 @@ def match_program(match_res, funcdb_map):
     import json
     lib_match = {} # match number 
     lib_match_full = {}
-    program_match = set()
     with open(match_res, 'r') as f:
         data = json.load(f)
     for (program, v) in data.items():
         program_match = set()
         for (func, match) in v.items():
             for (t, db_) in funcdb_map.items():
-                # bt
                 # functionID result 
                 if isinstance(match, list):
                     if match[0][0] in db_:
-                        # test
-                        if match[0][0] in progam_match:
-                            print(f'find {match[0][0]} in {program}')
-                        program_match.add(match[0][0])
-                        # test end
                         count(t, program, lib_match)
                         collect(t, program, {func: match}, lib_match_full)
                 # SimMatch result 
@@ -258,14 +261,179 @@ def match_program(match_res, funcdb_map):
                     collect(t, program, {func: match}, lib_match_full)
     return (lib_match, lib_match_full)
 
+def filter_match(lib_match, lib_match_full):
+    global threshold
+    SimMatch_result = {}
+    lib_match_filter = {}
+    for (t, v) in lib_match.items():
+        for (p, num) in v.items():
+            if num < threshold:
+                continue
+            if SimMatch_result.get(t) is None:
+                SimMatch_result[t] = 1
+            else:
+                SimMatch_result[t] += 1
+            # full match
+            if lib_match_filter.get(t) is None:
+                lib_match_filter[t] = {}
+            if lib_match_filter.get(p) is None:
+                lib_match_filter[t][p] = lib_match_full[t][p]
+    return (SimMatch_result, lib_match_filter)
+
+def library_arm():
+    # TODO: add table 7
+    # SimMatch 
+    (SimMatch_arm_match, SimMatch_arm_match_full) = match_program(best_match('SimMaxMatch_binfunc_arm_bins', 'json'), arm_funcdb)
+    with open('./res/SimMatch_arm_lib_result.json', 'w') as file:
+        json.dump(SimMatch_arm_match, file, indent=4)
+    with open('./res/SimMatch_arm_lib_full_result.json', 'w') as file:
+        json.dump(SimMatch_arm_match_full, file, indent=4)
+    (SimMatch_arm_filter, SimMatch_arm_filter_full) = filter_match(SimMatch_arm_match, SimMatch_arm_match_full)
+    with open('./res/SimMatch_arm_lib_filter_result.json', 'w') as file:
+        json.dump(SimMatch_arm_filter_full, file, indent=4)
+    # FunctionID
+    (FunctionID_arm_match, FunctionID_arm_match_full) = match_program(best_match('functionID_arm_bins', 'json'), arm_funcdb)
+    with open('./res/FunctionID_arm_lib_result.json', 'w') as file:
+        json.dump(FunctionID_arm_match, file, indent=4)
+    with open('./res/FunctionID_arm_lib_full_result.json', 'w') as file:
+        json.dump(FunctionID_arm_match_full, file, indent=4)
+    (FunctionID_arm_filter, FunctionID_arm_filter_full) = filter_match(FunctionID_arm_match, FunctionID_arm_match_full)
+    with open('./res/FunctionID_arm_lib_filter_result.json', 'w') as file:
+        json.dump(FunctionID_arm_filter_full, file, indent=4)
+    
+    # generate table 
+    ## add miss type 
+    types = []
+    table_ = [[],[]]
+    for t in arm_funcdb:
+        types.append(t)
+        num = SimMatch_arm_filter.get(t)
+        if num is None:
+            table_[0].append(0)
+        else:
+            table_[0].append(num)
+        num = FunctionID_arm_filter.get(t)
+        if num is None:
+            table_[1].append(0)
+        else:
+            table_[1].append(num)
+    ## real table 
+    table8 = md_table(['SimMatch','Function ID'], types, table_)
+    return table8
+
+def library_xtensa():
+    # TODO: add table 7
+    # SimMatch 
+    (SimMatch_xtensa_match, SimMatch_xtensa_match_full) = match_program(best_match('SimMaxMatch_binfunc_xtensa_bins', 'json'), esp_funcdb)
+    with open('./res/SimMatch_xtensa_lib_result.json', 'w') as file:
+        json.dump(SimMatch_xtensa_match, file, indent=4)
+    with open('./res/SimMatch_xtensa_lib_full_result.json', 'w') as file:
+        json.dump(SimMatch_xtensa_match_full, file, indent=4)
+    (SimMatch_xtensa_filter, SimMatch_xtensa_filter_full) = filter_match(SimMatch_xtensa_match, SimMatch_xtensa_match_full)
+    with open('./res/SimMatch_xtensa_lib_filter_result.json', 'w') as file:
+        json.dump(SimMatch_xtensa_filter_full, file, indent=4)
+    # FunctionID
+    (FunctionID_xtensa_match, FunctionID_xtensa_match_full) = match_program(best_match('functionID_xtensa_bins', 'json'), esp_funcdb)
+    with open('./res/FunctionID_xtensa_lib_result.json', 'w') as file:
+        json.dump(FunctionID_xtensa_match, file, indent=4)
+    with open('./res/FunctionID_xtensa_lib_full_result.json', 'w') as file:
+        json.dump(FunctionID_xtensa_match_full, file, indent=4)
+    (FunctionID_xtensa_filter, FunctionID_xtensa_filter_full) = filter_match(FunctionID_xtensa_match, FunctionID_xtensa_match_full)
+    with open('./res/FunctionID_xtensa_lib_filter_result.json', 'w') as file:
+        json.dump(FunctionID_xtensa_filter_full, file, indent=4)
+    
+    # generate table 
+    ## add miss type 
+    types = []
+    table_ = [[],[]]
+    for t in esp_funcdb:
+        types.append(t)
+        num = SimMatch_xtensa_filter.get(t)
+        if num is None:
+            table_[0].append(0)
+        else:
+            table_[0].append(num)
+        num = FunctionID_xtensa_filter.get(t)
+        if num is None:
+            table_[1].append(0)
+        else:
+            table_[1].append(num)
+    ## real table 
+    table9 = md_table(['SimMatch','Function ID'], types, table_)
+    return table9
+
+def total_match_result():
+    # ARM
+    with open(best_match('SimMatch_binfunc_arm_bins','csv'), 'r') as file:
+        lines = file.readlines()
+    SimMatch_arm_num = 0
+    for l in lines[1:]:
+        SimMatch_arm_num += int(l.split(',')[1])
+    with open(best_match('functionID_arm_bins','csv'), 'r') as file:
+        lines = file.readlines()
+    FunctionID_arm_num = 0
+    for l in lines[1:]:
+        FunctionID_arm_num += int(l.split(',')[1])
+    # Xtensa
+    with open(best_match('SimMatch_binfunc_xtensa_bins','csv'), 'r') as file:
+        lines = file.readlines()
+    SimMatch_xtensa_num = 0
+    for l in lines[1:]:
+        SimMatch_xtensa_num += int(l.split(',')[1])
+    with open(best_match('functionID_xtensa_bins','csv'), 'r') as file:
+        lines = file.readlines()
+    FunctionID_xtensa_num = 0
+    for l in lines[1:]:
+        FunctionID_xtensa_num += int(l.split(',')[1])
+    table7 = md_table(['SimMatch', 'Function ID'], ['ARM','Xtensa'], [[SimMatch_arm_num, SimMatch_xtensa_num],[FunctionID_arm_num, FunctionID_xtensa_num]])
+    return table7
+
+def mitigation():
+    mpu_num = 0
+    with open(best_match('MPU','csv'), 'r') as file:
+        lines = file.readlines()
+    # -1 for the header
+    mpu_num += len(lines) - 1
+    with open(best_match('SMPU','csv'), 'r') as file:
+        lines = file.readlines()
+    mpu_num +=  len(lines) -1 
+    # trustzone
+    with open(best_match('trustzone_s','csv'),'r') as file:
+        lines = file.readlines()
+    trustzone_num = len(lines) -1
+    table10 = md_table(['ARM'],['MPU', 'TrustZone'],[[mpu_num, trustzone_num]])
+    return table10
+
 def main(args):
+    global threshold
+    threshold = args.threshold
+    md_ = "# Results\n\n## 7.2.1 Complexity Anlaysis\n\n"
+    (table6_arm, figure3_arm, figure4_arm) = complexity_arm()
+    md_ += f"### ARM\n {table6_arm}\n\nDistribution of function number\n{figure3_arm}\n\nDistribution of firmware size\n{figure4_arm}\n\n" 
+    (table6_xtensa, figure3_xtensa, figure4_xtensa) = complexity_xtensa()
+    md_ += f"### Xtensa\n {table6_xtensa}\n\nDistribution of function number\n{figure3_xtensa}\n\nDistribution of firmware size\n{figure4_xtensa}\n\n"
+    
+    md_ += '## 7.2.2 Library Adoption Analysis\n\n'
+    table7 = total_match_result()
+    md_ += f'### Total\n {table7}\n\n'
+    table8 = library_arm()
+    md_ += f"### ARM\n {table8}\n\n"
+    table9 = library_xtensa()
+    md_ += f"### Xtensa\n {table9}\n\n"
+
+    md_ += '## 7.2.4 Mitigation Detection\n\n'
+    table10 = mitigation()
+    md_ += f'{table10}\n\n'
+    
+    with open('./res/results.md','w') as file:
+        file.write(md_)
     
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Generate the Result from file")
-    parser.add_argument("match_result",type=Path,helper="JSON based result from functionID or SimMatch")
-    parser.add_argument("threshold",default=2,helper="the threshold of match times to generate library adoption")
+    # parser.add_argument("match_result",type=Path,helper="JSON based result from functionID or SimMatch")
+    parser.add_argument("threshold",type=int,default=2,help="the threshold of match times to generate library adoption")
     args = parser.parse_args()
     # log
     LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

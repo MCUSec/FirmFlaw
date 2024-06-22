@@ -70,6 +70,7 @@ def main(args):
         json.dump(max_results, file, indent=4)
     # write csv 
     with open(f'./res/SimMatch_{args.input_db.name}_{log_time}_statistic.csv', 'w') as file:
+        file.write(f'Program, Match Number\n')
         for (k,v) in max_results.items():
             file.write(f'{k},{len(v)}\n')
     # end
